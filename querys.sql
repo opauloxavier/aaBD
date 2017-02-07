@@ -45,7 +45,7 @@ create table favorecido (
 );
 
 
-select max(length("CPF_Favorecido")) from public.raw_data;
+select max(length("Nome_Favorecido")) from public.raw_data;
 
 ALTER TABLE public.favorecido ADD COLUMN id SERIAL PRIMARY KEY;
 
@@ -76,13 +76,65 @@ INSERT INTO public.favorecido(cpf_favorecido,nome_favorecido) SELECT DISTINCT "C
 
 /* transaction que adiciona os dados da raw_data na temp table.*/
 
+select distinct "nome_favorecido","cpf_favorecido" from public.favorecido;
 
+select "Linguagem_Cidada","Nome_Acao" from raw_data;
 
 BEGIN;
 
-TRUNCATE public.temp_table RESTART IDENTITY;
+DROP TABLE temp_table;
 
-INSERT INTO public.temp_table (codigo_orgao_superior,codigo_orgao_subordinado,codigo_unidade_gestora,codigo_funcao,codigo_subfuncao,codigo_acao,codigo_programa) 
+CREATE TABLE temp_table
+(
+  id serial NOT NULL,
+  codigo_orgao_superior integer,
+  codigo_orgao_subordinado integer,
+  codigo_unidade_gestora integer,
+  codigo_funcao integer,
+  codigo_subfuncao integer,
+  codigo_programa integer,
+  codigo_acao character(6),
+  id_favorecido integer,
+  cpf_favorecido character(14),
+  nome_favorecido character(45),
+  
+  CONSTRAINT temp_table_pkey PRIMARY KEY (id),
+  CONSTRAINT temp_table_codigo_acao_fkey FOREIGN KEY (codigo_acao)
+      REFERENCES acao (codigo_acao) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT temp_table_codigo_funcao FOREIGN KEY (codigo_funcao)
+      REFERENCES funcao (codigo_funcao) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT temp_table_codigo_orgao_subordinado FOREIGN KEY (codigo_orgao_subordinado)
+      REFERENCES orgao_subordinado (codigo_orgao_subordinado) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT temp_table_codigo_orgao_superior_fkey FOREIGN KEY (codigo_orgao_superior)
+      REFERENCES orgao_superior (codigo_orgao_superior) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT temp_table_codigo_subfuncao_fkey FOREIGN KEY (codigo_subfuncao)
+      REFERENCES subfuncao (codigo_subfuncao) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT temp_table_codigo_unidade_gestora FOREIGN KEY (codigo_unidade_gestora)
+      REFERENCES unidade_gestora (codigo_unidade_gestora) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT temp_table_id_favorecido_fkey FOREIGN KEY (id_favorecido)
+      REFERENCES favorecido (id_favorecido) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE programa
+  OWNER TO postgres;
+
+CREATE INDEX 
+   ON temp_table USING btree (cpf_favorecido ASC NULLS LAST, nome_favorecido ASC NULLS LAST);
+
+CREATE INDEX ON favorecido USING btree (cpf_favorecido ASC NULLS LAST, nome_favorecido ASC NULLS LAST);
+
+
+
+INSERT INTO public.temp_table (codigo_orgao_superior,codigo_orgao_subordinado,codigo_unidade_gestora,codigo_funcao,codigo_subfuncao,codigo_acao,codigo_programa,cpf_favorecido,nome_favorecido) 
 	SELECT 
 		"Codigo_Orgao_Superior" :: Integer, 
 		"Codigo_Orgao_Subordinado" :: Integer,
@@ -90,10 +142,15 @@ INSERT INTO public.temp_table (codigo_orgao_superior,codigo_orgao_subordinado,co
 		"Codigo_Funcao" :: Integer,
 		"Codigo_Subfuncao" :: Integer,
 		"Codigo_Acao",
-		"Codigo_Programa" :: Integer
+		"Codigo_Programa" :: Integer,
+		"CPF_Favorecido",
+		"Nome_Favorecido"
 from public.raw_data;
 
-UPDATE temp_table SET "id_favorecido" = (Select distinct "id_favorecido" from public.favorecido,public.raw_data where raw_data."CPF_Favorecido" = "cpf_favorecido" and raw_data."Nome_Favorecido" = "nome_favorecido");
+UPDATE temp_table a SET "id_favorecido" = (Select favorecido."id_favorecido" from public.favorecido,public.temp_table where temp_table."cpf_favorecido" = favorecido."cpf_favorecido" and temp_table."nome_favorecido" = favorecido."nome_favorecido" and a.id = temp_table.id);
+
+ALTER TABLE temp_table DROP "cpf_favorecido";
+ALTER TABLE temp_table DROP "nome_favorecido";
 
 COMMIT;
 
