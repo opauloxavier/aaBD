@@ -3,12 +3,6 @@
 	nome_orgao_superior char(45)
 );
 
-create table Temp_Table (
-	id SERIAL PRIMARY KEY,
-	codigo_orgao_superior integer REFERENCES public.codigo_orgao_superior("codigo_orgao_superior"),
-	nome_orgao_superior char(45)
-);
-
 create table Orgao_Subordinado (
 	codigo_orgao_subordinado SERIAL PRIMARY KEY,
 	nome_orgao_subordinado char(45)
@@ -36,16 +30,52 @@ create table programa (
 
 create table acao (
 	codigo_acao char(6) PRIMARY KEY,
-	nome_acao char(150)
+	id_funcao_geral integer,
+	nome_acao char(150),
+	linguagem_cidada char(76),
+
+	CONSTRAINT table_acao_fk FOREIGN KEY (id_funcao_geral)
+		REFERENCES public.funcao_geral (id_funcao_geral) MATCH SIMPLE
 );
 
 create table favorecido (
+	id_favorecido SERIAL PRIMARY KEY,
 	cpf_favorecido char(14) PRIMARY KEY,
 	nome_favorecido char(45)
 );
 
+create table pagamento (
+	id_pagamento SERIAL PRIMARY KEY,
+	documento_pagamento varchar,
+	gestao_pagamento varchar,
+	data_pagamento varchar,
+	valor_pagamento varchar
+);
 
-select max(length("Nome_Favorecido")) from public.raw_data;
+create table orgao (
+	id_orgao SERIAL PRIMARY KEY,
+	id_orgao_superior integer,
+	id_orgao_subordinada integer,
+	
+	CONSTRAINT table_orgao_superior_fkey FOREIGN KEY (id_orgao_superior)
+		REFERENCES public.orgao_superior (codigo_orgao_superior) MATCH SIMPLE,
+	CONSTRAINT table_orgao_subordinado_fkey FOREIGN KEY (id_orgao_subordinada)
+		REFERENCES public.orgao_subordinado (codigo_orgao_subordinado) MATCH SIMPLE
+);
+
+create table funcao_geral (
+	id_funcao_geral SERIAL PRIMARY KEY,
+	id_funcao integer,
+	id_subfuncao integer,
+	
+	CONSTRAINT table_funcao_fkey FOREIGN KEY (id_funcao)
+		REFERENCES public.funcao (codigo_funcao) MATCH SIMPLE,
+	CONSTRAINT table_subfuncao_fkey FOREIGN KEY (id_subfuncao)
+		REFERENCES public.subfuncao (codigo_subfuncao) MATCH SIMPLE
+);
+
+
+select max(length("Linguagem_Cidada")) from public.raw_data;
 
 ALTER TABLE public.favorecido ADD COLUMN id SERIAL PRIMARY KEY;
 
@@ -62,69 +92,86 @@ select count(*) from public.temp_table;
 
 INSERT INTO public.orgao_subordinado(codigo_orgao_subordinado,nome_orgao_subordinado) SELECT DISTINCT "Codigo_Orgao_Subordinado" :: Integer, "Nome_Orgao_Subordinado" from public.raw_data ORDER BY "Nome_Orgao_Subordinado" ASC;
 
+INSERT INTO public.orgao(id_orgao_superior,id_orgao_subordinado) SELECT DISTINCT "Codigo_Orgao_Superior" :: Integer,"Codigo_Orgao_Subordinado" :: Integer from public.raw_data;
+
 INSERT INTO public.unidade_gestora (codigo_unidade_gestora,nome_unidade_gestora) SELECT DISTINCT "Codigo_Unidade_Gestora" :: Integer, "Nome_Unidade_Gestora" from public.raw_data ORDER BY "Codigo_Unidade_Gestora" ASC;
 
 INSERT INTO public.funcao(codigo_funcao,nome_funcao) SELECT DISTINCT "Codigo_Funcao" :: Integer, "Nome_Funcao" from public.raw_data ORDER BY "Nome_Funcao" ASC;
 
 INSERT INTO public.subfuncao(codigo_subfuncao,nome_subfuncao) SELECT DISTINCT "Codigo_Subfuncao" :: Integer, "Nome_Subuncao" from public.raw_data ORDER BY "Nome_Subuncao" ASC;
 
+INSERT INTO public.funcao_geral(id_funcao,id_subfuncao) SELECT DISTINCT "Codigo_Funcao" :: Integer,"Codigo_Subfuncao" :: Integer from public.raw_data;
+
 INSERT INTO public.programa(codigo_programa,nome_programa) SELECT DISTINCT "Codigo_Programa" :: Integer, "Nome_Programa" from public.raw_data ORDER BY "Nome_Programa" ASC;
 
-INSERT INTO public.acao(codigo_acao,nome_acao) SELECT DISTINCT "Codigo_Acao", "Nome_Acao" from public.raw_data ORDER BY "Nome_Acao" ASC;
+INSERT INTO public.acao(codigo_acao,nome_acao,linguagem_cidada) SELECT DISTINCT "Codigo_Acao", "Nome_Acao","Linguagem_Cidada" from public.raw_data;
 
-INSERT INTO public.favorecido(cpf_favorecido,nome_favorecido) SELECT DISTINCT "CPF_Favorecido", "Nome_Favorecido" from public.raw_data ORDER BY "Nome_Favorecido" ASC;
-
+INSERT INTO public.pagamento(documento_pagamento,gestao_pagamento,data_pagamento,valor_pagamento) select "Documento_Pagamento","Gestao_Pagamento","Data_Pagamento","Valor_Pagamento" from public.raw_data; 
 /* transaction que adiciona os dados da raw_data na temp table.*/
 
-select distinct "nome_favorecido","cpf_favorecido" from public.favorecido;
-
 select "Linguagem_Cidada","Nome_Acao" from raw_data;
+
+select distinct "Linguagem_Cidada" from public.raw_data where "Nome_Acao" = 'Segurança Institucional do Presidente da República e do Vice-Presidente da República, Respectivos Familiares, e Outras Autoridades'; 
+
+select distinct "Codigo_Orgao_Subordinado" from public.raw_data;
+
+
+select distinct "codigo_acao" from public.temp_table;
+select distinct "id_funcao_geral" from public.temp_table where "codigo_acao"='6381';
+
+select distinct count(temp_table."id_funcao_geral") from public.acao , public.temp_table  where temp_table."codigo_acao" = acao."codigo_acao" ;
 
 BEGIN;
 
 DROP TABLE temp_table;
 
-CREATE TABLE temp_table
+CREATE TABLE public.temp_table
 (
-  id serial NOT NULL,
+  id integer NOT NULL DEFAULT nextval('id_temp_seq'::regclass),
+  id_orgao integer,
+  codigo_unidade_gestora integer,
   codigo_orgao_superior integer,
   codigo_orgao_subordinado integer,
-  codigo_unidade_gestora integer,
   codigo_funcao integer,
   codigo_subfuncao integer,
+  id_funcao_geral integer,
   codigo_programa integer,
   codigo_acao character(6),
   id_favorecido integer,
-  cpf_favorecido character(14),
-  nome_favorecido character(45),
+  cpf_favorecido character varying,
+  nome_favorecido character varying,
+  documento_pagamento character varying,
+  gestao_pagamento character varying,
+  data_pagamento character varying,
+  valor_pagamento character varying,
   
   CONSTRAINT temp_table_pkey PRIMARY KEY (id),
   CONSTRAINT temp_table_codigo_acao_fkey FOREIGN KEY (codigo_acao)
-      REFERENCES acao (codigo_acao) MATCH SIMPLE
+      REFERENCES public.acao (codigo_acao) MATCH SIMPLE
       ON UPDATE NO ACTION ON DELETE NO ACTION,
   CONSTRAINT temp_table_codigo_funcao FOREIGN KEY (codigo_funcao)
-      REFERENCES funcao (codigo_funcao) MATCH SIMPLE
+      REFERENCES public.funcao (codigo_funcao) MATCH SIMPLE
       ON UPDATE NO ACTION ON DELETE NO ACTION,
-  CONSTRAINT temp_table_codigo_orgao_subordinado FOREIGN KEY (codigo_orgao_subordinado)
-      REFERENCES orgao_subordinado (codigo_orgao_subordinado) MATCH SIMPLE
-      ON UPDATE NO ACTION ON DELETE NO ACTION,
-  CONSTRAINT temp_table_codigo_orgao_superior_fkey FOREIGN KEY (codigo_orgao_superior)
-      REFERENCES orgao_superior (codigo_orgao_superior) MATCH SIMPLE
+  CONSTRAINT temp_table_id_orgao FOREIGN KEY (id_orgao)
+      REFERENCES public.orgao (id_orgao) MATCH SIMPLE
       ON UPDATE NO ACTION ON DELETE NO ACTION,
   CONSTRAINT temp_table_codigo_subfuncao_fkey FOREIGN KEY (codigo_subfuncao)
-      REFERENCES subfuncao (codigo_subfuncao) MATCH SIMPLE
+      REFERENCES public.subfuncao (codigo_subfuncao) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT temp_table_funcao_geral_fkey FOREIGN KEY (id_funcao_geral)
+      REFERENCES public.funcao_geral (id_funcao_geral) MATCH SIMPLE
       ON UPDATE NO ACTION ON DELETE NO ACTION,
   CONSTRAINT temp_table_codigo_unidade_gestora FOREIGN KEY (codigo_unidade_gestora)
-      REFERENCES unidade_gestora (codigo_unidade_gestora) MATCH SIMPLE
+      REFERENCES public.unidade_gestora (codigo_unidade_gestora) MATCH SIMPLE
       ON UPDATE NO ACTION ON DELETE NO ACTION,
   CONSTRAINT temp_table_id_favorecido_fkey FOREIGN KEY (id_favorecido)
-      REFERENCES favorecido (id_favorecido) MATCH SIMPLE
+      REFERENCES public.favorecido (id_favorecido) MATCH SIMPLE
       ON UPDATE NO ACTION ON DELETE NO ACTION
 )
 WITH (
   OIDS=FALSE
 );
-ALTER TABLE programa
+ALTER TABLE public.temp_table
   OWNER TO postgres;
 
 CREATE INDEX 
@@ -132,19 +179,22 @@ CREATE INDEX
 
 CREATE INDEX ON favorecido USING btree (cpf_favorecido ASC NULLS LAST, nome_favorecido ASC NULLS LAST);
 
-
-
-INSERT INTO public.temp_table (codigo_orgao_superior,codigo_orgao_subordinado,codigo_unidade_gestora,codigo_funcao,codigo_subfuncao,codigo_acao,codigo_programa,cpf_favorecido,nome_favorecido) 
+INSERT INTO public.temp_table (codigo_orgao_subordinado,codigo_orgao_superior,codigo_unidade_gestora,codigo_funcao,codigo_subfuncao,codigo_acao,codigo_programa,cpf_favorecido,nome_favorecido,documento_pagamento,gestao_pagamento,data_pagamento,valor_pagamento) 
 	SELECT 
-		"Codigo_Orgao_Superior" :: Integer, 
-		"Codigo_Orgao_Subordinado" :: Integer,
+		"Codigo_Orgao_Subordinado" ::Integer,
+		"Codigo_Orgao_Superior" :: Integer,
 		"Codigo_Unidade_Gestora" :: Integer,
 		"Codigo_Funcao" :: Integer,
 		"Codigo_Subfuncao" :: Integer,
 		"Codigo_Acao",
 		"Codigo_Programa" :: Integer,
 		"CPF_Favorecido",
-		"Nome_Favorecido"
+		"Nome_Favorecido",
+		"Documento_Pagamento",
+		"Gestao_Pagamento",
+		"Data_Pagamento",
+		"Valor_Pagamento"
+		
 from public.raw_data;
 
 UPDATE temp_table a SET "id_favorecido" = (Select favorecido."id_favorecido" from public.favorecido,public.temp_table where temp_table."cpf_favorecido" = favorecido."cpf_favorecido" and temp_table."nome_favorecido" = favorecido."nome_favorecido" and a.id = temp_table.id);
@@ -152,6 +202,18 @@ UPDATE temp_table a SET "id_favorecido" = (Select favorecido."id_favorecido" fro
 ALTER TABLE temp_table DROP "cpf_favorecido";
 ALTER TABLE temp_table DROP "nome_favorecido";
 
+UPDATE temp_table a SET "id_orgao" = (Select orgao."id_orgao" from public.orgao,public.temp_table where temp_table."codigo_orgao_subordinado" = orgao."id_orgao_subordinado" and temp_table."codigo_orgao_superior" = orgao."id_orgao_superior" and a.id = temp_table.id);
+
+ALTER TABLE temp_table DROP "codigo_orgao_subordinado";
+ALTER TABLE temp_table DROP "codigo_orgao_superior";
+
+UPDATE temp_table a SET "id_funcao_geral" = (Select funcao_geral."id_funcao_geral" from public.funcao_geral,public.temp_table where temp_table."codigo_funcao" = funcao_geral."id_funcao" and temp_table."codigo_subfuncao" = funcao_geral."id_subfuncao" and a.id = temp_table.id);
+
+ALTER TABLE temp_table DROP "codigo_funcao";
+ALTER TABLE temp_table DROP "codigo_subfuncao";
+
+);
+
 COMMIT;
 
-(Select distinct "id_favorecido" from public.favorecido,public.raw_data where raw_data."CPF_Favorecido" = "cpf_favorecido" and raw_data."Nome_Favorecido" = "nome_favorecido");
+END;
