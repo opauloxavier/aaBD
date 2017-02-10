@@ -10,7 +10,11 @@ create table Orgao_Subordinado (
 
 create table Unidade_Gestora (
 	codigo_unidade_gestora SERIAL PRIMARY KEY,
-	nome_unidade_gestora char(45)
+	nome_unidade_gestora char(45),
+	id_orgao integer
+
+	CONSTRAINT table_unidade_gestora_id_orgao_fkey FOREIGN KEY (id_orgao)
+		REFERENCES public.orgao (id_orgao) MATCH SIMPLE
 );
 
 create table Funcao (
@@ -30,12 +34,8 @@ create table programa (
 
 create table acao (
 	codigo_acao char(6) PRIMARY KEY,
-	id_funcao_geral integer,
 	nome_acao char(150),
-	linguagem_cidada char(76),
-
-	CONSTRAINT table_acao_fk FOREIGN KEY (id_funcao_geral)
-		REFERENCES public.funcao_geral (id_funcao_geral) MATCH SIMPLE
+	linguagem_cidada char(76)
 );
 
 create table favorecido (
@@ -74,6 +74,17 @@ create table funcao_geral (
 		REFERENCES public.subfuncao (codigo_subfuncao) MATCH SIMPLE
 );
 
+create table funcao_geral_acao (
+	id_funcao_geral_acao SERIAL PRIMARY KEY,
+	id_funcao_geral integer,
+	codigo_acao varchar,
+
+	CONSTRAINT table_funcao_geral_acao_funcao_geral_fkey FOREIGN KEY (id_funcao_geral)
+		REFERENCES public.funcao_geral (id_funcao_geral) MATCH SIMPLE,
+	CONSTRAINT table_funcao_geral_acao_codigo_acao_fkey FOREIGN KEY (codigo_acao)
+		REFERENCES public.acao (codigo_acao) MATCH SIMPLE
+);
+
 
 select max(length("Linguagem_Cidada")) from public.raw_data;
 
@@ -109,6 +120,9 @@ INSERT INTO public.acao(codigo_acao,nome_acao,linguagem_cidada) SELECT DISTINCT 
 INSERT INTO public.pagamento(documento_pagamento,gestao_pagamento,data_pagamento,valor_pagamento) select "Documento_Pagamento","Gestao_Pagamento","Data_Pagamento","Valor_Pagamento" from public.raw_data; 
 /* transaction que adiciona os dados da raw_data na temp table.*/
 
+INSERT INTO public.funcao_geral_acao(id_funcao_geral,codigo_acao) select distinct "id_funcao_geral","codigo_acao" from public.temp_table;
+  --
+
 select "Linguagem_Cidada","Nome_Acao" from raw_data;
 
 select distinct "Linguagem_Cidada" from public.raw_data where "Nome_Acao" = 'Segurança Institucional do Presidente da República e do Vice-Presidente da República, Respectivos Familiares, e Outras Autoridades'; 
@@ -116,10 +130,19 @@ select distinct "Linguagem_Cidada" from public.raw_data where "Nome_Acao" = 'Seg
 select distinct "Codigo_Orgao_Subordinado" from public.raw_data;
 
 
-select distinct "codigo_acao" from public.temp_table;
-select distinct "id_funcao_geral" from public.temp_table where "codigo_acao"='6381';
+select distinct "id_funcao_geral" from public.temp_table;
 
-select distinct count(temp_table."id_funcao_geral") from public.acao , public.temp_table  where temp_table."codigo_acao" = acao."codigo_acao" ;
+--Prova que ação não tem apenas uma funcao geral
+select count(distinct "id_orgao"),"codigo_unidade_gestora" from public.temp_table GROUP BY "codigo_unidade_gestora" order by 1 desc;
+
+-- Prova que codigo_programa possui mais de uma funcao_geral
+select count(distinct "codigo_programa"),"id_funcao_geral_acao" from public.temp_table GROUP BY "id_funcao_geral_acao" order by 1 desc;
+
+-- Orgao superior - orgao subordinado
+select count(distinct "Codigo_Orgao_Superior"),"Codigo_Orgao_Subordinado" from public.raw_data GROUP BY "Codigo_Orgao_Subordinado" order by 1 desc;
+
+select count(*), gestao_pagamento from temp_table group by 2 order by 1 desc;
+
 
 BEGIN;
 
@@ -127,7 +150,7 @@ DROP TABLE temp_table;
 
 CREATE TABLE public.temp_table
 (
-  id integer NOT NULL DEFAULT nextval('id_temp_seq'::regclass),
+  id SERIAL PRIMARY KEY,
   id_orgao integer,
   codigo_unidade_gestora integer,
   codigo_orgao_superior integer,
@@ -135,6 +158,7 @@ CREATE TABLE public.temp_table
   codigo_funcao integer,
   codigo_subfuncao integer,
   id_funcao_geral integer,
+  id_funcao_geral_acao integer,
   codigo_programa integer,
   codigo_acao character(6),
   id_favorecido integer,
@@ -145,7 +169,6 @@ CREATE TABLE public.temp_table
   data_pagamento character varying,
   valor_pagamento character varying,
   
-  CONSTRAINT temp_table_pkey PRIMARY KEY (id),
   CONSTRAINT temp_table_codigo_acao_fkey FOREIGN KEY (codigo_acao)
       REFERENCES public.acao (codigo_acao) MATCH SIMPLE
       ON UPDATE NO ACTION ON DELETE NO ACTION,
@@ -166,6 +189,9 @@ CREATE TABLE public.temp_table
       ON UPDATE NO ACTION ON DELETE NO ACTION,
   CONSTRAINT temp_table_id_favorecido_fkey FOREIGN KEY (id_favorecido)
       REFERENCES public.favorecido (id_favorecido) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT temp_table_id_funcao_geral_acao_fkey FOREIGN KEY (id_funcao_geral_acao)
+      REFERENCES public.funcao_geral_acao (id_funcao_geral_acao) MATCH SIMPLE
       ON UPDATE NO ACTION ON DELETE NO ACTION
 )
 WITH (
@@ -179,7 +205,7 @@ CREATE INDEX
 
 CREATE INDEX ON favorecido USING btree (cpf_favorecido ASC NULLS LAST, nome_favorecido ASC NULLS LAST);
 
-INSERT INTO public.temp_table (codigo_orgao_subordinado,codigo_orgao_superior,codigo_unidade_gestora,codigo_funcao,codigo_subfuncao,codigo_acao,codigo_programa,cpf_favorecido,nome_favorecido,documento_pagamento,gestao_pagamento,data_pagamento,valor_pagamento) 
+INSERT INTO public.temp_table (codigo_orgao_subordinado,codigo_orgao_superior,codigo_unidade_gestora,codigo_funcao,codigo_subfuncao,codigo_acao,codigo_programa,cpf_favorecido,nome_favorecido,documento_pagamento,gestao_pagamento,data_pagamento,valor_pagamento)
 	SELECT 
 		"Codigo_Orgao_Subordinado" ::Integer,
 		"Codigo_Orgao_Superior" :: Integer,
@@ -211,6 +237,15 @@ UPDATE temp_table a SET "id_funcao_geral" = (Select funcao_geral."id_funcao_gera
 
 ALTER TABLE temp_table DROP "codigo_funcao";
 ALTER TABLE temp_table DROP "codigo_subfuncao";
+
+UPDATE temp_table a SET "id_funcao_geral_acao" = (Select funcao_geral_acao."id_funcao_geral_acao" from public.funcao_geral_acao where a.codigo_acao = funcao_geral_acao.codigo_acao and a.id_funcao_geral = funcao_geral_acao.id_funcao_geral);
+
+ALTER TABLE temp_table DROP codigo_acao;
+ALTER TABLE temp_table DROP id_funcao_geral;
+
+UPDATE unidade_gestora a set id_orgao = (Select distinct id_orgao from temp_table where temp_table.codigo_unidade_gestora = a.codigo_unidade_gestora);
+
+ALTER TABLE temp_table DROP id_orgao;
 
 );
 
