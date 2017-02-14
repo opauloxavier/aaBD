@@ -358,7 +358,11 @@ WHERE nome_orgao_superior='MINISTERIO DO PLANEJAMENTO,ORCAMENTO E GESTAO';
 
 --QUERY 3 --
 
-select id_favorecido from temp_table where (select count(id_favorecido) from temp_table)
+select count(distinct "valor_pagamento") AS numero_pagamentos,temp_table.id_favorecido,favorecido.nome_favorecido from temp_table 
+	INNER JOIN favorecido ON temp_table.id_favorecido = favorecido.id_favorecido 
+GROUP BY temp_table.id_favorecido,favorecido.nome_favorecido HAVING count(distinct "valor_pagamento") > 5;
+
+--Query 4--
 
 
 -------Demonstrações queries ----
