@@ -2,6 +2,8 @@
 
 BEGIN;
 
+--drop table raw_data_test;
+
 create table raw_data_test (
     Codigo_Orgao_Superior VARCHAR NOT NULL,
     Nome_Orgao_Superior VARCHAR NOT NULL,
@@ -36,29 +38,29 @@ END;
 
 create table orgao_Superior (
 	codigo_orgao_superior SERIAL PRIMARY KEY,
-	nome_orgao_superior char(45)
+	nome_orgao_superior varchar
 );
 
 create table orgao_Subordinado (
 	codigo_orgao_subordinado SERIAL PRIMARY KEY,
-	nome_orgao_subordinado char(45)
+	nome_orgao_subordinado varchar
 );
 
 create table orgao (
 	id_orgao SERIAL PRIMARY KEY,
 	id_orgao_superior integer,
-	id_orgao_subordinada integer,
+	id_orgao_subordinado integer,
 	
 	CONSTRAINT table_orgao_superior_fkey FOREIGN KEY (id_orgao_superior)
 		REFERENCES public.orgao_superior (codigo_orgao_superior) MATCH SIMPLE,
-	CONSTRAINT table_orgao_subordinado_fkey FOREIGN KEY (id_orgao_subordinada)
+	CONSTRAINT table_orgao_subordinado_fkey FOREIGN KEY (id_orgao_subordinado)
 		REFERENCES public.orgao_subordinado (codigo_orgao_subordinado) MATCH SIMPLE
 );
 
 create table unidade_gestora (
 	codigo_unidade_gestora SERIAL PRIMARY KEY,
-	nome_unidade_gestora char(45),
-	id_orgao integer
+	nome_unidade_gestora varchar,
+	id_orgao integer,
 
 	CONSTRAINT table_unidade_gestora_id_orgao_fkey FOREIGN KEY (id_orgao)
 		REFERENCES public.orgao (id_orgao) MATCH SIMPLE
@@ -66,29 +68,29 @@ create table unidade_gestora (
 
 create table funcao (
 	codigo_funcao SERIAL PRIMARY KEY,
-	nome_funcao char(21)
+	nome_funcao varchar
 );
 
 create table subfuncao (
 	codigo_subfuncao SERIAL PRIMARY KEY,
-	nome_subfuncao char(48)
+	nome_subfuncao varchar
 );
 
 create table programa (
 	codigo_programa SERIAL PRIMARY KEY,
-	nome_programa char(110)
+	nome_programa varchar
 );
 
 create table acao (
-	codigo_acao char(6) PRIMARY KEY,
-	nome_acao char(150),
-	linguagem_cidada char(76)
+	codigo_acao varchar PRIMARY KEY,
+	nome_acao varchar,
+	linguagem_cidada varchar
 );
 
 create table favorecido (
 	id_favorecido SERIAL PRIMARY KEY,
-	cpf_favorecido char(14) PRIMARY KEY,
-	nome_favorecido char(45)
+	cpf_favorecido varchar,
+	nome_favorecido varchar
 );
 
 create table pagamento (
@@ -134,7 +136,7 @@ create table funcao_geral_programa_acao (
 
 /* QUERIES DE INSERÇÃO NAS TABELAS */
 
-INSERT INTO public.orgao_superior (codigo_orgao_superior,nome_orgao_superior) SELECT "Codigo_Orgao_Superior" :: Integer, "Nome_Orgao_Superior" from public.raw_data ORDER BY "Codigo_Orgao_Superior" ASC;
+INSERT INTO public.orgao_superior (codigo_orgao_superior,nome_orgao_superior) SELECT DISTINCT "Codigo_Orgao_Superior" :: Integer, "Nome_Orgao_Superior" from public.raw_data ORDER BY "Codigo_Orgao_Superior" ASC;
 
 INSERT INTO public.orgao_subordinado(codigo_orgao_subordinado,nome_orgao_subordinado) SELECT DISTINCT "Codigo_Orgao_Subordinado" :: Integer, "Nome_Orgao_Subordinado" from public.raw_data ORDER BY "Nome_Orgao_Subordinado" ASC;
 
@@ -144,7 +146,7 @@ INSERT INTO public.unidade_gestora (codigo_unidade_gestora,nome_unidade_gestora)
 
 INSERT INTO public.funcao(codigo_funcao,nome_funcao) SELECT DISTINCT "Codigo_Funcao" :: Integer, "Nome_Funcao" from public.raw_data ORDER BY "Nome_Funcao" ASC;
 
-INSERT INTO public.subfuncao(codigo_subfuncao,nome_subfuncao) SELECT DISTINCT "Codigo_Subfuncao" :: Integer, "Nome_Subfuncao" from public.raw_data ORDER BY "Nome_Subuncao" ASC;
+INSERT INTO public.subfuncao(codigo_subfuncao,nome_subfuncao) SELECT DISTINCT "Codigo_Subfuncao" :: Integer, "Nome_Subuncao" from public.raw_data ORDER BY "Nome_Subuncao" ASC;
 
 INSERT INTO public.funcao_geral(id_funcao,id_subfuncao) SELECT DISTINCT "Codigo_Funcao" :: Integer,"Codigo_Subfuncao" :: Integer from public.raw_data;
 
@@ -152,57 +154,11 @@ INSERT INTO public.programa(codigo_programa,nome_programa) SELECT DISTINCT "Codi
 
 INSERT INTO public.acao(codigo_acao,nome_acao,linguagem_cidada) SELECT DISTINCT "Codigo_Acao", "Nome_Acao","Linguagem_Cidada" from public.raw_data;
 
-INSERT INTO programa_acao (codigo_programa,codigo_acao) select distinct "Codigo_Programa","Codigo_Acao" from public.raw_data;
+INSERT INTO programa_acao (codigo_programa,codigo_acao) select distinct "Codigo_Programa"::Integer,"Codigo_Acao" from public.raw_data;
 
 INSERT INTO favorecido (cpf_favorecido,nome_favorecido) select distinct "CPF_Favorecido","Nome_Favorecido" from public.raw_data;
 
 /* FIM QUERIES DE INSERÇÃO NAS TABELAS */
-
-
-/* QUERIES INVESTIGATIVAS */
-select "Linguagem_Cidada","Nome_Acao" from raw_data;
-
-select distinct "Linguagem_Cidada" from public.raw_data where "Nome_Acao" = 'Segurança Institucional do Presidente da República e do Vice-Presidente da República, Respectivos Familiares, e Outras Autoridades'; 
-
-select distinct "Nome_Funcao" from raw_data order by "Nome_Funcao" asc;
-
-select distinct "id_funcao_geral" from public.temp_table;
-
---Prova que ação não tem apenas uma funcao geral
-select count(distinct "id_orgao"),"codigo_unidade_gestora" from public.temp_table GROUP BY "codigo_unidade_gestora" order by 1 desc;
--- Conclusao: inserida coluna id_orgao em "unidade_gestora"
-
--- Prova que codigo_programa possui mais de uma funcao_geral
-select count(distinct "codigo_programa"),"id_funcao_geral_acao" from public.temp_table GROUP BY "id_funcao_geral_acao" order by 1 desc;
-
--- Porque colocar programa dentro de acao
-select count(distinct "codigo_programa"),"codigo_acao" from temp_table GROUP BY "codigo_acao" order by 1 desc; -- quase 1 pra 1
-select count(distinct "Codigo_Acao"),"Codigo_Programa" from public.raw_data GROUP BY "Codigo_Programa" order by 1 desc; -- mais variações
--- Conclusao: criada tabela programa_acao
-
--- Orgao superior - orgao subordinado
-select count(distinct "Codigo_Orgao_Subordinado"),"Codigo_Orgao_Superior" from public.raw_data GROUP BY "Codigo_Orgao_Superior" order by 1 desc;
-
--- Investigando funcao_geral e programa_acao
-select count(distinct "id_funcao_geral"),"id_programa_acao" from temp_table GROUP BY "id_programa_acao" order by 1 desc; -- quase 1 pra 1
-select count(distinct "Codigo_Acao"),"Codigo_Programa" from public.raw_data GROUP BY "Codigo_Programa" order by 1 desc; -- mais variações
--- Conclusão: 
-
-select count(distinct "codigo_unidade_gestora"),"id_funcao_geral" from temp_table GROUP BY "id_funcao_geral" order by 1 desc;
-
-
-select count(*), gestao_pagamento from temp_table group by 2 order by 1 desc;
-
-select count(distinct "codigo_unidade_gestora"),"id_funcao_geral_acao","codigo_programa" from public.temp_table GROUP BY "id_funcao_geral_acao",id_funcao_geral_acao,codigo_programa order by 1 desc;
-
-select distinct codigo_unidade_gestora,"id_funcao_geral_acao","codigo_programa" from temp_table order by 1 asc;
-
-select distinct id_funcao_geral_acao,codigo_programa from temp_table;
-
-select count(distinct "codigo_unidade_gestora"),"id_funcao_geral_programa_acao" from public.temp_table GROUP BY "id_funcao_geral_programa_acao" order by 1 desc;
-
-
-/* FIM QUERIES INVESTIGATIVAS */
 
 BEGIN;
 
