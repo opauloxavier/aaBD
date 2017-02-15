@@ -267,6 +267,10 @@ ALTER TABLE public.temp_table
 CREATE INDEX 
    ON temp_table USING btree (cpf_favorecido ASC NULLS LAST, nome_favorecido ASC NULLS LAST);
 
+
+CREATE INDEX 
+   ON temp_table USING btree (id_funcao_geral_programa_acao ASC NULLS LAST);
+
 CREATE INDEX ON favorecido USING btree (cpf_favorecido ASC NULLS LAST, nome_favorecido ASC NULLS LAST);
 
 INSERT INTO public.temp_table (codigo_orgao_subordinado,codigo_orgao_superior,codigo_unidade_gestora,codigo_funcao,codigo_subfuncao,codigo_acao,codigo_programa,cpf_favorecido,nome_favorecido,documento_pagamento,gestao_pagamento,data_pagamento,valor_pagamento)
@@ -288,8 +292,8 @@ INSERT INTO public.temp_table (codigo_orgao_subordinado,codigo_orgao_superior,co
 from public.raw_data;
 
 -- Ajustando , para ponto e convertendo o data_type para float para poder utilizar nas querys futuras
-UPDATE temp_table SET valor_pagamento = replace(valor_pagamento, ',', '.');
-ALTER TABLE temp_table ALTER COLUMN valor_pagamento TYPE real USING valor_pagamento::real;
+--UPDATE temp_table SET valor_pagamento = replace(valor_pagamento, ',', '.');
+--ALTER TABLE temp_table ALTER COLUMN valor_pagamento TYPE real USING valor_pagamento::real;
 -- Finalizando ajuste de data_type
 
 -- Elaborando Favorecidos
@@ -334,43 +338,3 @@ ALTER TABLE temp_table DROP id_programa_acao;
 COMMIT;
 
 END;
-
-
-select count(distinct "id_funcao_geral"),"id_programa_acao" from temp_table GROUP BY "id_programa_acao" order by 1 desc; -- quase 1 pra 1
-
-select * from temp_table where valor_pagamento = 95244 ;
-
-
---- QUERIES DO TRABALHO ----
-
---QUERY 1--
-
-select distinct nome_favorecido from temp_table LEFT JOIN favorecido ON temp_table.id_favorecido = favorecido.id_favorecido where valor_pagamento = (select max(valor_pagamento) from temp_table);
-
---QUERY 2--
-
-select sum(valor_pagamento)::Decimal(10,2) AS total_gasto_diarias from temp_table
-	LEFT JOIN unidade_gestora ON temp_table.codigo_unidade_gestora = unidade_gestora.codigo_unidade_gestora
-	LEFT JOIN orgao ON unidade_gestora.id_orgao = orgao.id_orgao
-	LEFT JOIN orgao_superior ON orgao.id_orgao_superior = orgao_superior.codigo_orgao_superior
-
-WHERE nome_orgao_superior='MINISTERIO DO PLANEJAMENTO,ORCAMENTO E GESTAO';
-
---QUERY 3 --
-
-select count(distinct "valor_pagamento") AS numero_pagamentos,temp_table.id_favorecido,favorecido.nome_favorecido from temp_table 
-	INNER JOIN favorecido ON temp_table.id_favorecido = favorecido.id_favorecido 
-GROUP BY temp_table.id_favorecido,favorecido.nome_favorecido HAVING count(distinct "valor_pagamento") > 5;
-
---Query 4--
-
-
--------Demonstrações queries ----
-
---query 2
-select temp_table.codigo_unidade_gestora, nome_unidade_gestora, valor_pagamento, unidade_gestora.id_orgao, orgao.id_orgao_superior, orgao_superior.nome_orgao_superior from temp_table
-	LEFT JOIN unidade_gestora ON temp_table.codigo_unidade_gestora = unidade_gestora.codigo_unidade_gestora
-	LEFT JOIN orgao ON unidade_gestora.id_orgao = orgao.id_orgao
-	LEFT JOIN orgao_superior ON orgao.id_orgao_superior = orgao_superior.codigo_orgao_superior
-
-WHERE nome_orgao_superior='MINISTERIO DO PLANEJAMENTO,ORCAMENTO E GESTAO';
