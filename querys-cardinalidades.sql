@@ -42,4 +42,7 @@ select distinct id_funcao_geral_acao,codigo_programa from temp_table;
 select count(distinct "codigo_unidade_gestora"),"id_funcao_geral_programa_acao" from public.temp_table GROUP BY "id_funcao_geral_programa_acao" order by 1 desc;
 
 
+select count(distinct "Codigo_Orgao_Subordinado"),"Codigo_Orgao_Superior" from public.raw_data GROUP BY "Codigo_Orgao_Superior" order by 1 desc;
+
+
 /* FIM QUERIES INVESTIGATIVAS */
