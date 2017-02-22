@@ -76,7 +76,7 @@ CREATE TABLE pagamentos
   documento_pagamento varchar,
   gestao_pagamento varchar,
   data_pagamento varchar,
-  valor_pagamento varchar,
+  valor_pagamento numeric(10,2),
 
   CONSTRAINT pagamentos_codigo_orgao_superior FOREIGN KEY (codigo_orgao_superior)
       REFERENCES orgao_superior (codigo_orgao_superior) MATCH SIMPLE

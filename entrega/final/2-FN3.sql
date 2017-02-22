@@ -126,7 +126,7 @@ CREATE TABLE pagamentos
   documento_pagamento varchar,
   gestao_pagamento varchar,
   data_pagamento varchar,
-  valor_pagamento varchar,
+  valor_pagamento numeric(10,2),
   
   CONSTRAINT pagamentos_codigo_acao_fkey FOREIGN KEY (codigo_acao)
       REFERENCES acao (codigo_acao) MATCH SIMPLE

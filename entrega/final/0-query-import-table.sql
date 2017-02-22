@@ -28,5 +28,5 @@ create table IF NOT EXISTS raw_data (
 );
 
 set client_encoding = UTF8;
-COPY raw_data from '/home/over/git/aa_BD/entrega/201403_Diarias_ORIGINAL.csv' delimiter ',' CSV HEADER;
+COPY raw_data from '/home/over/git/aa_BD/entrega/final/201403_Diarias_ORIGINAL-APRESENTACAO.csv' delimiter ',' CSV HEADER;
 -- Finalizar importação
